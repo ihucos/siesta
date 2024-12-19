@@ -43,7 +43,9 @@ class App:
             prog="siesta", description="Automatize workflow with jinja2 prompts."
         )
 
-        parser.add_argument("prompt", help=f"A prompt template at {self.prompts_dir}")
+        parser.add_argument(
+            "prompt", nargs="?", help=f"A prompt template at {self.prompts_dir}"
+        )
         parser.add_argument("--list", help="List all prompts", action="store_true")
         parser.add_argument(
             "--verbose", help="Print completions as it comes", action="store_true"
@@ -149,7 +151,7 @@ def filter_ask(app, inp):
     if ask == "x":
         os.execlp("bash", "bash", "-c", inp)
     elif ask == "r":
-        self.cache.close()
+        app.cache.close()
         os.execlp(sys.executable, sys.executable, *sys.argv)
     elif ask == "q":
         sys.exit(0)
