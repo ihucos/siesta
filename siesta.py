@@ -92,7 +92,7 @@ def filter_debug(app, input):
     sys.exit(0)
 
 
-def filter_prompt(app, prompt, model="ministral-8b-latest"):
+def filter_prompt(app, prompt, model):
     # Import on-demand because its slow
     from litellm import completion
 
