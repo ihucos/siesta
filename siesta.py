@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import os
 import shlex
 import io
@@ -52,7 +51,7 @@ class App:
         return parser
 
     def command_list(self):
-        for prompt in os.listdir(PROMPTS_DIR):
+        for prompt in os.listdir(self.prompts_dir):
             if prompt.endswith(".j2"):
                 print(prompt[:-3])
         sys.exit(0)
