@@ -9,6 +9,7 @@ authors = ["Irae Hueck Costa <mail@irae.me>"]
 [tool.poetry.dependencies]
 python = "^3.8"
 litellm = "^1.55.6"
+jinja2 = "^3.1.4"
 
 
 [tool.poetry.scripts]

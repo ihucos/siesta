@@ -10,7 +10,6 @@ import re
 import shelve
 import argparse
 
-
 from jinja2 import Environment, FileSystemLoader
 
 
