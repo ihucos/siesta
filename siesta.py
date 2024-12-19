@@ -36,17 +36,6 @@ class App:
         output = template.render(args=self.args).strip()
 
         print(output)
-        inp = input("[R]epeat, E[x]ecute or [Q]uit?")
-        if inp == "":
-            inp = "r"
-
-        if inp == "x":
-            os.execlp("bash", "bash", "-c", output)
-        elif inp == "r":
-            self.cache.close()
-            os.execlp(sys.executable, sys.executable, *sys.argv)
-        elif inp == "q":
-            sys.exit(0)
 
     def add_filter(self, name, func):
         self.env.filters[name] = lambda *args, **kwargs: func(self, *args, **kwargs)
@@ -121,10 +110,9 @@ def filter_prompt(app, prompt, model="ministral-8b-latest"):
             delta = chunk.choices[0].delta.content
             if not delta:
                 break
-            content = chunk.choices[0].delta.content
-            msg.write(content)
+            msg.write(delta)
             if app.args.verbose:
-                sys.stderr.write(content)
+                sys.stderr.write(delta)
                 sys.stderr.flush()
 
         msgval = msg.getvalue()
@@ -154,6 +142,21 @@ def filter_code(app, inp):
     return inp
 
 
+def filter_ask(app, inp):
+    print(inp)
+    ask = input("[R]epeat, E[x]ecute or [Q]uit?")
+    if ask == "":
+        ask = "r"
+
+    if ask == "x":
+        os.execlp("bash", "bash", "-c", inp)
+    elif ask == "r":
+        self.cache.close()
+        os.execlp(sys.executable, sys.executable, *sys.argv)
+    elif ask == "q":
+        sys.exit(0)
+
+
 def filter_quote(app, stri):
     return shlex.quote(stri)
 
@@ -166,6 +169,7 @@ def main():
     app.add_filter("catfiles", filter_catfiles)
     app.add_filter("code", filter_code)
     app.add_filter("quote", filter_quote)
+    app.add_filter("ask", filter_ask)
     app.run()
 
 
