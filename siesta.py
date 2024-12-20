@@ -177,6 +177,7 @@ def main():
     app.add_filter("ask", filter_ask, bind_app=True)
     app.add_filter("code", filter_code, bind_app=True)
     app.add_filter("quote", shlex.quote)
+    app.add_filter("json", json.loads)
     app.run()
 
 
