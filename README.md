@@ -2,7 +2,9 @@
 
 ## install
 
+```
 pip install git+https://github.com/ihucos/siesta.git
+```
 
 ## Create your first workflow at `~/.prompts`
 
