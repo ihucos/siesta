@@ -24,7 +24,7 @@ class App:
             lstrip_blocks=True,
         )
 
-    def run(self):
+    def start(self):
         if self.args.list:
             self.command_list()
 
@@ -167,7 +167,7 @@ def filter_askrun(app, inp):
     if ask == "x":
         os.execlp("bash", "bash", "-c", inp)
     elif ask == "r":
-        app.run()
+        app.start()
     elif ask == "q":
         sys.exit(0)
 
@@ -197,7 +197,7 @@ def main():
     app.add_filter("code", filter_code, bind_app=True)
     app.add_filter("quote", shlex.quote)
     app.add_filter("json", json.loads)
-    app.run()
+    app.start()
 
 
 if __name__ == "__main__":
