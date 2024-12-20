@@ -1,12 +1,14 @@
 # siesta
 
-## install
+## Crash Course
+
+### install
 
 ```
 pip3 install git+https://github.com/ihucos/siesta.git
 ```
 
-## Create your first workflow at `~/.prompts`
+### Create your first workflow at `~/.prompts`
 
 ```
 # ~/.prompts/commit.j2
@@ -20,7 +22,7 @@ git commit -am {{ commit|askedit|quote }}
 {% endfilter %}
 ```
 
-## Use the workflow
+### Use the workflow
 
 ```
 siesta commit
