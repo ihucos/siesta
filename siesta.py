@@ -11,6 +11,7 @@ import shelve
 import argparse
 
 from jinja2 import Environment, FileSystemLoader
+from jinja2.exceptions import TemplateNotFound
 
 
 class App:
@@ -31,7 +32,14 @@ class App:
 
         template_name = self.args.prompt + ".j2"
 
-        template = self.env.get_template(template_name)
+        try:
+            template = self.env.get_template(template_name)
+        except TemplateNotFound:
+            print(
+                f"No such prompt: {self.args.prompt} (try `siesta --list`)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         output = template.render(args=self.args).strip()
 
         print(output)
@@ -150,9 +158,9 @@ def filter_code(app, inp):
     return inp
 
 
-def filter_ask(app, inp):
+def filter_askrun(app, inp):
     print(inp)
-    ask = input("[R]epeat, E[x]ecute or [Q]uit?")
+    ask = input("[R]epeat, E[x]ecute, E[d] or [Q]uit?")
     if ask == "":
         ask = "r"
 
@@ -168,13 +176,24 @@ def filter_quote(app, stri):
     return shlex.quote(stri)
 
 
+def filter_askedit(stri):
+    result = subprocess.run(
+        ["dialog", "--inputbox", "Edit", "10", "100", stri],  # Example command
+        text=True,  # Handle output as text (str)
+        stderr=subprocess.PIPE,  # Capture only stderr
+        check=True,  # Raise an exception on failure
+    )
+    return result.stderr
+
+
 def main():
     app = App()
     app.add_filter("prompt", filter_prompt, bind_app=True)
     app.add_filter("debug", filter_debug, bind_app=True)
     app.add_filter("run", filter_run, bind_app=True)
     app.add_filter("catfiles", filter_catfiles, bind_app=True)
-    app.add_filter("ask", filter_ask, bind_app=True)
+    app.add_filter("askrun", filter_askrun, bind_app=True)
+    app.add_filter("askedit", filter_askedit)
     app.add_filter("code", filter_code, bind_app=True)
     app.add_filter("quote", shlex.quote)
     app.add_filter("json", json.loads)
