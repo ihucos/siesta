@@ -159,8 +159,7 @@ def filter_ask(app, inp):
     if ask == "x":
         os.execlp("bash", "bash", "-c", inp)
     elif ask == "r":
-        app.cache.close()
-        os.execlp(sys.executable, sys.executable, *sys.argv)
+        app.run()
     elif ask == "q":
         sys.exit(0)
 
