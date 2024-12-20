@@ -28,3 +28,33 @@ git commit -am {{ commit|askedit|quote }}
 ```
 siesta commit
 ```
+
+## Filters
+
+### prompt
+Ask for completion by a LLM. See list of supported models: https://docs.litellm.ai/docs/providers
+
+### debug
+Print input and exit.
+
+### run
+Run input in bash, return output
+
+### catfiles
+Cat all files found in input with labels
+
+### askrun
+Ask the user to run something
+
+### askedit
+Let the user edit a string
+
+### code
+Filter out code blocks
+
+### quote
+Shell escape
+
+### json
+Parse as JSON
+
