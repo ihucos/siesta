@@ -36,8 +36,11 @@ class App:
 
         print(output)
 
-    def add_filter(self, name, func):
-        self.env.filters[name] = lambda *args, **kwargs: func(self, *args, **kwargs)
+    def add_filter(self, name, func, bind_app=False):
+        if bind_app:
+            self.env.filters[name] = lambda *args, **kwargs: func(self, *args, **kwargs)
+        else:
+            self.env.filters[name] = func
 
     def get_argparse_parser(self):
         parser = argparse.ArgumentParser(
@@ -73,7 +76,7 @@ def filter_run(app, input, cmd="bash", label=False, silentfail=False):
     )
 
     # Send input and capture output
-    stdout, stderr = process.communicate(input=input)
+    stdout, _ = process.communicate(input=input)
 
     # Print the results
     if process.returncode != 0:
@@ -168,13 +171,13 @@ def filter_quote(app, stri):
 
 def main():
     app = App()
-    app.add_filter("prompt", filter_prompt)
-    app.add_filter("debug", filter_debug)
-    app.add_filter("run", filter_run)
-    app.add_filter("catfiles", filter_catfiles)
-    app.add_filter("code", filter_code)
-    app.add_filter("quote", filter_quote)
-    app.add_filter("ask", filter_ask)
+    app.add_filter("prompt", filter_prompt, bind_app=True)
+    app.add_filter("debug", filter_debug, bind_app=True)
+    app.add_filter("run", filter_run, bind_app=True)
+    app.add_filter("catfiles", filter_catfiles, bind_app=True)
+    app.add_filter("ask", filter_ask, bind_app=True)
+    app.add_filter("code", filter_code, bind_app=True)
+    app.add_filter("quote", shlex.quote)
     app.run()
 
 
