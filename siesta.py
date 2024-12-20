@@ -4,6 +4,7 @@ import shlex
 import io
 import sys
 import subprocess
+import hashlib
 import json
 import re
 import shelve
@@ -16,7 +17,7 @@ class App:
     def __init__(self):
         self.prompts_dir = os.path.expanduser("~/.prompts/")
         self.args = self.get_argparse_parser().parse_args()
-        self.cache = shelve.open("/tmp/prompt_cache")
+        self.cache = shelve.open(os.path.expanduser("~/.prompt_cache"))
         self.env = Environment(
             loader=FileSystemLoader(self.prompts_dir),
             lstrip_blocks=True,
@@ -47,6 +48,7 @@ class App:
             "prompt", nargs="?", help=f"A prompt template at {self.prompts_dir}"
         )
         parser.add_argument("--list", help="List all prompts", action="store_true")
+        parser.add_argument("--recache", help="Rewrite to cache", action="store_true")
         parser.add_argument(
             "--verbose", help="Print completions as it comes", action="store_true"
         )
@@ -96,9 +98,12 @@ def filter_prompt(app, prompt, model):
     # Import on-demand because its slow
     from litellm import completion
 
-    cache_key = str((model, prompt))
+    cache_key = hashlib.sha256(f"{model}:{prompt}".encode()).hexdigest()
+    if app.args.recache:
+        cached = None
+    else:
+        cached = app.cache.get(cache_key)
 
-    cached = app.cache.get(cache_key)
     if cached is not None:
         return cached
     else:
