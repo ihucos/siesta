@@ -40,7 +40,7 @@ class App:
                 file=sys.stderr,
             )
             sys.exit(1)
-        output = template.render(args=self.args).strip()
+        output = template.render(args=" ".join(self.args.extra)).strip()
 
         print(output)
 
@@ -58,6 +58,7 @@ class App:
         parser.add_argument(
             "prompt", nargs="?", help=f"A prompt template at {self.prompts_dir}"
         )
+        parser.add_argument("extra", nargs="*", help=f"Extra")
         parser.add_argument("--list", help="List all prompts", action="store_true")
         parser.add_argument("--recache", help="Rewrite to cache", action="store_true")
         parser.add_argument(
