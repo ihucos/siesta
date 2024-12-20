@@ -2,7 +2,6 @@
 import os
 import shlex
 import io
-import requests
 import sys
 import subprocess
 import hashlib
