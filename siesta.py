@@ -50,7 +50,13 @@ class App:
             sys.exit(1)
         output = template.render(args=" ".join(self.args.extra)).strip()
 
-        print(output)
+        lines = output.splitlines()
+        if lines and lines[0].startswith("#!"):
+            output = "\n".join(lines[1:])
+        else:
+            output = "\n".join(lines)
+
+        print(output.strip("\n"))
 
     def add_filter(self, name, func, bind_app=False):
         if bind_app:
