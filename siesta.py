@@ -4,11 +4,13 @@ import shlex
 import io
 import sys
 import subprocess
+from uuid import uuid4
 import hashlib
 import json
 import re
 import shelve
 import argparse
+from litellm import completion
 from concurrent.futures import ThreadPoolExecutor
 
 from jinja2 import Environment, FileSystemLoader
@@ -18,6 +20,7 @@ from jinja2.exceptions import TemplateNotFound
 class App:
     def __init__(self):
         self.pool = ThreadPoolExecutor()
+        self.uuid2futures = {}
         self.args = self.get_argparse_parser().parse_args()
         if "/" in self.args.prompt:
             self.prompts_dir = os.path.dirname(self.args.prompt)
@@ -59,10 +62,22 @@ class App:
         print(output.strip("\n"))
 
     def add_filter(self, name, func, bind_app=False):
+        def wrapped_func(*args, **kwargs):
+            return self.expand_futures(func(*args, **kwargs))
+
         if bind_app:
-            self.env.filters[name] = lambda *args, **kwargs: func(self, *args, **kwargs)
+            self.env.filters[name] = lambda *args, **kwargs: wrapped_func(
+                self, *args, **kwargs
+            )
         else:
-            self.env.filters[name] = func
+            self.env.filters[name] = wrapped_func
+
+    def expand_futures(self, stri):
+        for uuid, future in self.uuid2futures.items():
+            uuid = str(uuid)
+            if uuid in stri:
+                stri = stri.replace(uuid, future.result())
+        return stri
 
     def get_argparse_parser(self):
         parser = argparse.ArgumentParser(
@@ -86,7 +101,6 @@ class App:
 
 
 def filter_run(app, input, cmd="bash", label=False, silentfail=False):
-    input = str(input)
     # Start the process
     if not isinstance(cmd, str):
         cmd = shlex.join(cmd)
@@ -114,7 +128,6 @@ def filter_run(app, input, cmd="bash", label=False, silentfail=False):
 
 
 def filter_debug(app, input):
-    input = str(input)
     print(input)
     print("=== DEBUG DIE DIE ===")
     sys.exit(0)
@@ -122,7 +135,6 @@ def filter_debug(app, input):
 
 def filter_prompt(app, prompt, model, **kwargs):
     # Import on-demand because its slow
-    from litellm import completion
 
     cache_key = hashlib.sha256(f"{model}:{prompt}:{kwargs}".encode()).hexdigest()
     if app.args.recache:
@@ -153,22 +165,19 @@ def filter_prompt(app, prompt, model, **kwargs):
 
         return msgval
 
-
-class FutureWrapper:
-    def __init__(self, future):
-        self.future = future
-
-    def __str__(self):
-        return self.future.result()
+    # def __getattribute__(self, attr):
+    #     print(attr)
+    #     return super().__getattribute__(attr)
 
 
 def filter_prompt_async(app, model, input, **kwargs):
     future = app.pool.submit(filter_prompt, app, model, input, **kwargs)
-    return FutureWrapper(future)
+    uuid = uuid4()
+    app.uuid2futures[uuid] = future
+    return str(uuid)
 
 
 def filter_catfiles(app, inp):
-    inp = str(inp)
     files = re.findall(r"(\w+\/[\w/\.]+)", inp)  # BUGGED, rewrite re
     contents = io.StringIO()
     for file in files:
@@ -180,7 +189,6 @@ def filter_catfiles(app, inp):
 
 
 def filter_code(app, inp):
-    inp = str(inp)
     triple_quotes = re.findall(r"```(.*?)```", inp, re.DOTALL)
     single_quotes = re.findall(r"`(.*?)`", inp, re.DOTALL)
     if triple_quotes:
@@ -191,7 +199,6 @@ def filter_code(app, inp):
 
 
 def filter_askrun(app, inp):
-    inp = str(inp)
     print(inp)
     ask = input("[R]epeat, E[x]ecute, E[d] or [Q]uit?")
     if ask == "":
@@ -210,7 +217,6 @@ def filter_quote(app, stri):
 
 
 def filter_askedit(stri):
-    stri = str(stri)
     result = subprocess.run(
         ["dialog", "--inputbox", "Edit", "10", "100", stri],  # Example command
         text=True,  # Handle output as text (str)
