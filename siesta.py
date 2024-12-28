@@ -120,21 +120,23 @@ def filter_debug(app, input):
     sys.exit(0)
 
 
-def filter_prompt(app, prompt, model):
+def filter_prompt(app, prompt, model, **kwargs):
     # Import on-demand because its slow
     from litellm import completion
 
-    cache_key = hashlib.sha256(f"{model}:{prompt}".encode()).hexdigest()
+    cache_key = hashlib.sha256(f"{model}:{prompt}:{kwargs}".encode()).hexdigest()
     if app.args.recache:
         cached = None
     else:
         cached = app.cache.get(cache_key)
-
     if cached is not None:
         return cached
     else:
         response = completion(
-            model=model, messages=[{"content": prompt, "role": "user"}], stream=True
+            model=model,
+            messages=[{"content": prompt, "role": "user"}],
+            stream=True,
+            **kwargs,
         )
         msg = io.StringIO()
         for chunk in response:
@@ -160,8 +162,8 @@ class FutureWrapper:
         return self.future.result()
 
 
-def filter_prompt_async(app, model, input):
-    future = app.pool.submit(filter_prompt, app, model, input)
+def filter_prompt_async(app, model, input, **kwargs):
+    future = app.pool.submit(filter_prompt, app, model, input, **kwargs)
     return FutureWrapper(future)
 
 
