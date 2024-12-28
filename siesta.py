@@ -9,6 +9,7 @@ import json
 import re
 import shelve
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 
 from jinja2 import Environment, FileSystemLoader
 from jinja2.exceptions import TemplateNotFound
@@ -16,8 +17,12 @@ from jinja2.exceptions import TemplateNotFound
 
 class App:
     def __init__(self):
-        self.prompts_dir = os.path.expanduser("~/.prompts/")
+        self.pool = ThreadPoolExecutor()
         self.args = self.get_argparse_parser().parse_args()
+        if "/" in self.args.prompt:
+            self.prompts_dir = os.path.dirname(self.args.prompt)
+        else:
+            self.prompts_dir = os.path.expanduser("~/.prompts/")
         self.cache = shelve.open(os.path.expanduser("~/.prompt_cache"))
         self.env = Environment(
             loader=FileSystemLoader(self.prompts_dir),
@@ -30,13 +35,16 @@ class App:
 
         # args = " ".join(sys.argv[2:])
 
-        template_name = self.args.prompt + ".j2"
+        if "/" in self.args.prompt:
+            template_name = os.path.basename(self.args.prompt)
+        else:
+            template_name = self.args.prompt + ".j2"
 
         try:
             template = self.env.get_template(template_name)
         except TemplateNotFound:
             print(
-                f"No such prompt: {self.args.prompt} (try `siesta --list`)",
+                f"No such prompt file: {self.args.prompt} (try `siesta --list`)",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -55,9 +63,7 @@ class App:
             prog="siesta", description="Automatize workflow with jinja2 prompts."
         )
 
-        parser.add_argument(
-            "prompt", nargs="?", help=f"A prompt template at {self.prompts_dir}"
-        )
+        parser.add_argument("prompt", nargs="?", help=f"A prompt template file")
         parser.add_argument("extra", nargs="*", help=f"Extra")
         parser.add_argument("--list", help="List all prompts", action="store_true")
         parser.add_argument("--recache", help="Rewrite to cache", action="store_true")
@@ -74,6 +80,7 @@ class App:
 
 
 def filter_run(app, input, cmd="bash", label=False, silentfail=False):
+    input = str(input)
     # Start the process
     if not isinstance(cmd, str):
         cmd = shlex.join(cmd)
@@ -101,6 +108,7 @@ def filter_run(app, input, cmd="bash", label=False, silentfail=False):
 
 
 def filter_debug(app, input):
+    input = str(input)
     print(input)
     print("=== DEBUG DIE DIE ===")
     sys.exit(0)
@@ -138,7 +146,21 @@ def filter_prompt(app, prompt, model):
         return msgval
 
 
+class FutureWrapper:
+    def __init__(self, future):
+        self.future = future
+
+    def __str__(self):
+        return self.future.result()
+
+
+def filter_prompt_async(app, model, input):
+    future = app.pool.submit(filter_prompt, app, model, input)
+    return FutureWrapper(future)
+
+
 def filter_catfiles(app, inp):
+    inp = str(inp)
     files = re.findall(r"(\w+\/[\w/\.]+)", inp)  # BUGGED, rewrite re
     contents = io.StringIO()
     for file in files:
@@ -150,6 +172,7 @@ def filter_catfiles(app, inp):
 
 
 def filter_code(app, inp):
+    inp = str(inp)
     triple_quotes = re.findall(r"```(.*?)```", inp, re.DOTALL)
     single_quotes = re.findall(r"`(.*?)`", inp, re.DOTALL)
     if triple_quotes:
@@ -160,6 +183,7 @@ def filter_code(app, inp):
 
 
 def filter_askrun(app, inp):
+    inp = str(inp)
     print(inp)
     ask = input("[R]epeat, E[x]ecute, E[d] or [Q]uit?")
     if ask == "":
@@ -178,6 +202,7 @@ def filter_quote(app, stri):
 
 
 def filter_askedit(stri):
+    stri = str(stri)
     result = subprocess.run(
         ["dialog", "--inputbox", "Edit", "10", "100", stri],  # Example command
         text=True,  # Handle output as text (str)
@@ -189,7 +214,7 @@ def filter_askedit(stri):
 
 def main():
     app = App()
-    app.add_filter("prompt", filter_prompt, bind_app=True)
+    app.add_filter("prompt", filter_prompt_async, bind_app=True)
     app.add_filter("debug", filter_debug, bind_app=True)
     app.add_filter("run", filter_run, bind_app=True)
     app.add_filter("catfiles", filter_catfiles, bind_app=True)
