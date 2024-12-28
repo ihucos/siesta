@@ -11,7 +11,7 @@ pip3 install git+https://github.com/ihucos/siesta.git
 ### Create your first workflow at `~/.prompts/commit.j2`
 
 ```jinja2
-{% set commit|prompt("openai/gpt-4o") %}
+{% set commit|prompt("openai/gpt-4o-mini") %}
 Write a git commit message for these changes. Use few words.
   {% filter run(label=True) %}
   git diff
