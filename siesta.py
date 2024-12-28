@@ -64,7 +64,7 @@ class App:
         )
 
         parser.add_argument("prompt", nargs="?", help=f"A prompt template file")
-        parser.add_argument("extra", nargs="*", help=f"Extra")
+        parser.add_argument("extra", nargs="*", help="Extra")
         parser.add_argument("--list", help="List all prompts", action="store_true")
         parser.add_argument("--recache", help="Rewrite to cache", action="store_true")
         parser.add_argument(
