@@ -9,7 +9,6 @@ import hashlib
 import json
 import re
 import shelve
-import argparse
 from litellm import completion
 from concurrent.futures import ThreadPoolExecutor
 
@@ -17,93 +16,55 @@ from jinja2 import Environment, FileSystemLoader
 from jinja2.exceptions import TemplateNotFound
 
 
-class App:
-    def __init__(self):
-        self.pool = ThreadPoolExecutor()
-        self.uuid2futures = {}
-        self.args = self.get_argparse_parser().parse_args()
-        if "/" in self.args.prompt:
-            self.prompts_dir = os.path.dirname(self.args.prompt)
-        else:
-            self.prompts_dir = os.path.expanduser("~/.prompts/")
-        self.cache = shelve.open(os.path.expanduser("~/.prompt_cache"))
+class Siesta:
+    def __init__(self, argv):
+        self.argv = argv
+        self.template_file = argv[1]
+        self._uuid2futures = {}
         self.env = Environment(
-            loader=FileSystemLoader(self.prompts_dir),
+            loader=FileSystemLoader(os.path.dirname(self.template_file)),
             lstrip_blocks=True,
         )
 
-    def start(self):
-        if self.args.list:
-            self.command_list()
-
-        # args = " ".join(sys.argv[2:])
-
-        if "/" in self.args.prompt:
-            template_name = os.path.basename(self.args.prompt)
-        else:
-            template_name = self.args.prompt + ".j2"
-
-        try:
-            template = self.env.get_template(template_name)
-        except TemplateNotFound:
-            print(
-                f"No such prompt file: {self.args.prompt} (try `siesta --list`)",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        output = template.render(
-            extra=self.args.extra,
-            args=" ".join(self.args.extra),
-        ).strip()
+    def run(self):
+        self.pool = ThreadPoolExecutor()
+        self.cache = shelve.open(os.path.expanduser("~/.prompt_cache"))
+        template = self.env.get_template(os.path.basename(self.template_file))
+        output = template.render(argv=sys.argv, input=" ".join(sys.argv[2:]))
 
         lines = output.splitlines()
         if lines and lines[0].startswith("#!"):
-            output = "\n".join(lines[1:])
-        else:
-            output = "\n".join(lines)
+            lines = lines[1:]
+        print("\n".join(lines).strip("\n"))
 
-        print(output.strip("\n"))
+    def filter(self, func):
+        name = func.__name__.rstrip("_")
+        self.env.filters[name] = lambda *args, **kwargs: self._expand_futures(
+            func(*args, **kwargs)
+        )
+        return func
 
-    def add_filter(self, name, func, bind_app=False):
-        def wrapped_func(*args, **kwargs):
-            return self.expand_futures(func(*args, **kwargs))
-
-        if bind_app:
-            self.env.filters[name] = lambda *args, **kwargs: wrapped_func(
-                self, *args, **kwargs
-            )
-        else:
-            self.env.filters[name] = wrapped_func
-
-    def expand_futures(self, stri):
-        for uuid, future in self.uuid2futures.items():
-            uuid = str(uuid)
+    def _expand_futures(self, stri):
+        for uuid, future in self._uuid2futures.items():
             if uuid in stri:
                 stri = stri.replace(uuid, future.result())
         return stri
 
-    def get_argparse_parser(self):
-        parser = argparse.ArgumentParser(
-            prog="siesta", description="Automatize workflow with jinja2 prompts."
-        )
-
-        parser.add_argument("prompt", nargs="?", help=f"A prompt template file")
-        parser.add_argument("extra", nargs="*", help="Extra")
-        parser.add_argument("--list", help="List all prompts", action="store_true")
-        parser.add_argument("--recache", help="Rewrite to cache", action="store_true")
-        parser.add_argument(
-            "--verbose", help="Print completions as it comes", action="store_true"
-        )
-        return parser
-
-    def command_list(self):
-        for prompt in os.listdir(self.prompts_dir):
-            if prompt.endswith(".j2"):
-                print(prompt[:-3])
-        sys.exit(0)
+    def register_future(self, future):
+        uuid = str(uuid4())
+        self._uuid2futures[uuid] = future
+        return uuid
 
 
-def filter_run(app, input, cmd="bash", label=False, silentfail=False):
+try:
+    siesta = Siesta(sys.argv)
+except IndexError:
+    print("usage: siesta <template-file> <args>")
+    sys.exit(1)
+
+
+@siesta.filter
+def run(input, cmd="bash", label=False, silentfail=False):
     # Start the process
     if not isinstance(cmd, str):
         cmd = shlex.join(cmd)
@@ -130,20 +91,21 @@ def filter_run(app, input, cmd="bash", label=False, silentfail=False):
     return stdout
 
 
-def filter_debug(app, input):
+@siesta.filter
+def debug(input):
     print(input)
     print("=== DEBUG DIE DIE ===")
     sys.exit(0)
 
 
-def filter_prompt(app, prompt, model, **kwargs):
+def prompt_sync(prompt, model, **kwargs):
     # Import on-demand because its slow
 
     cache_key = hashlib.sha256(f"{model}:{prompt}:{kwargs}".encode()).hexdigest()
-    if app.args.recache:
+    if os.environ.get("SIESTA_CACHE") in ("yes", "true", "1"):
         cached = None
     else:
-        cached = app.cache.get(cache_key)
+        cached = siesta.cache.get(cache_key)
     if cached is not None:
         return cached
     else:
@@ -159,28 +121,24 @@ def filter_prompt(app, prompt, model, **kwargs):
             if not delta:
                 break
             msg.write(delta)
-            if app.args.verbose:
+            if os.environ.get("SIESTA_VERBOSE") in ("yes", "true", "1"):
                 sys.stderr.write(delta)
                 sys.stderr.flush()
 
         msgval = msg.getvalue()
-        app.cache[cache_key] = msgval
+        siesta.cache[cache_key] = msgval
 
         return msgval
 
-    # def __getattribute__(self, attr):
-    #     print(attr)
-    #     return super().__getattribute__(attr)
+
+@siesta.filter
+def prompt(model, input, **kwargs):
+    future = siesta.pool.submit(prompt_sync, model, input, **kwargs)
+    return siesta.register_future(future)
 
 
-def filter_prompt_async(app, model, input, **kwargs):
-    future = app.pool.submit(filter_prompt, app, model, input, **kwargs)
-    uuid = uuid4()
-    app.uuid2futures[uuid] = future
-    return str(uuid)
-
-
-def filter_catfiles(app, inp):
+@siesta.filter
+def catfiles(app, inp):
     files = re.findall(r"(\w+\/[\w/\.]+)", inp)  # BUGGED, rewrite re
     contents = io.StringIO()
     for file in files:
@@ -191,7 +149,8 @@ def filter_catfiles(app, inp):
     return contents.getvalue()
 
 
-def filter_code(app, inp):
+@siesta.filter
+def code(inp):
     triple_quotes = re.findall(r"```(.*?)```", inp, re.DOTALL)
     single_quotes = re.findall(r"`(.*?)`", inp, re.DOTALL)
     if triple_quotes:
@@ -201,7 +160,8 @@ def filter_code(app, inp):
     return inp
 
 
-def filter_askrun(app, inp):
+@siesta.filter
+def askrun(inp):
     print(f"$ {inp}")
     ask = input("[R]epeat, E[x]ecute, E[d] or [Q]uit?")
     if ask == "":
@@ -210,44 +170,41 @@ def filter_askrun(app, inp):
     if ask == "x":
         os.execlp("bash", "bash", "-c", inp)
     elif ask == "r":
-        app.start()
+        siesta.run()
     elif ask == "q":
         sys.exit(0)
     return ""
 
 
-def filter_quote(app, stri):
+@siesta.filter
+def quote(stri):
     return shlex.quote(stri)
 
 
-def filter_print(stri):
+@siesta.filter
+def print_(stri):
     print(stri)
     return stri
 
 
-def filter_askedit(stri):
+@siesta.filter
+def json_(stri):
+    return json.loads(stri)
+
+
+@siesta.filter
+def askedit(stri):
     result = subprocess.run(
         ["dialog", "--inputbox", "Edit", "10", "100", stri],  # Example command
         text=True,  # Handle output as text (str)
         stderr=subprocess.PIPE,  # Capture only stderr
-        check=True,  # Raise an exception on failure
+        check=True,  # Raise an exception on s;
     )
     return result.stderr
 
 
 def main():
-    app = App()
-    app.add_filter("prompt", filter_prompt_async, bind_app=True)
-    app.add_filter("debug", filter_debug, bind_app=True)
-    app.add_filter("run", filter_run, bind_app=True)
-    app.add_filter("catfiles", filter_catfiles, bind_app=True)
-    app.add_filter("askrun", filter_askrun, bind_app=True)
-    app.add_filter("askedit", filter_askedit)
-    app.add_filter("code", filter_code, bind_app=True)
-    app.add_filter("quote", shlex.quote)
-    app.add_filter("json", json.loads)
-    app.add_filter("print", filter_print)
-    app.start()
+    siesta.run()
 
 
 if __name__ == "__main__":

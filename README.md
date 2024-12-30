@@ -8,9 +8,11 @@
 pip3 install git+https://github.com/ihucos/siesta.git
 ```
 
-### Create your first workflow at `~/.prompts/commit.j2`
+### Create your first script at `~/bin/s:commit`
 
 ```jinja2
+#!/usr/bin/env siesta
+# vim: set ft=jinja
 {% set commit|prompt("openai/gpt-4o-mini") %}
 Write a git commit message for these changes. Use few words.
   {% filter run(label=True) %}
@@ -23,10 +25,15 @@ git commit -am {{ commit|askedit|quote }}
 {% endfilter %}
 ```
 
-### Use the workflow
+### mark as executable
+```
+chmod +x ~/bin/s:commit
+```
+
+### Use the script
 
 ```
-siesta commit
+s:commit
 ```
 
 ## Filters
