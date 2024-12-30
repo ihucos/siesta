@@ -163,7 +163,11 @@ def code(inp):
 @siesta.filter
 def askrun(inp):
     print(f"$ {inp}")
-    ask = input("[R]epeat, E[x]ecute, E[d] or [Q]uit?")
+    try:
+        ask = input("[R]epeat, E[x]ecute, E[d] or [Q]uit?")
+    except KeyboardInterrupt:
+        print()
+        sys.exit(130)
     if ask == "":
         ask = "r"
 
