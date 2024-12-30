@@ -51,7 +51,10 @@ class App:
                 file=sys.stderr,
             )
             sys.exit(1)
-        output = template.render(args=" ".join(self.args.extra)).strip()
+        output = template.render(
+            extra=self.args.extra,
+            args=" ".join(self.args.extra),
+        ).strip()
 
         lines = output.splitlines()
         if lines and lines[0].startswith("#!"):
@@ -199,7 +202,7 @@ def filter_code(app, inp):
 
 
 def filter_askrun(app, inp):
-    print(inp)
+    print(f"$ {inp}")
     ask = input("[R]epeat, E[x]ecute, E[d] or [Q]uit?")
     if ask == "":
         ask = "r"
@@ -210,10 +213,16 @@ def filter_askrun(app, inp):
         app.start()
     elif ask == "q":
         sys.exit(0)
+    return ""
 
 
 def filter_quote(app, stri):
     return shlex.quote(stri)
+
+
+def filter_print(stri):
+    print(stri)
+    return stri
 
 
 def filter_askedit(stri):
@@ -237,6 +246,7 @@ def main():
     app.add_filter("code", filter_code, bind_app=True)
     app.add_filter("quote", shlex.quote)
     app.add_filter("json", json.loads)
+    app.add_filter("print", filter_print)
     app.start()
 
 
