@@ -8,7 +8,7 @@
 pip3 install git+https://github.com/ihucos/siesta.git
 ```
 
-### Create your first script at `~/bin/s:commit`
+### Create your first script at `~/bin/s-commit`
 
 ```jinja2
 #!/usr/bin/env siesta
@@ -27,13 +27,13 @@ git commit -am {{ commit|askedit|quote }}
 
 ### mark as executable
 ```
-chmod +x ~/bin/s:commit
+chmod +x ~/bin/s-commit
 ```
 
 ### Use the script
 
 ```
-s:commit
+s-commit
 ```
 
 ## Filters
