@@ -218,9 +218,9 @@ def json_(stri):
 
 
 @siesta.filter
-def askedit(stri):
+def askedit(stri, label="Edit"):
     result = subprocess.run(
-        ["dialog", "--inputbox", "Edit", "10", "100", stri],  # Example command
+        ["dialog", "--inputbox", label, "10", "100", stri],  # Example command
         text=True,  # Handle output as text (str)
         stderr=subprocess.PIPE,  # Capture only stderr
         check=True,  # Raise an exception on s;
