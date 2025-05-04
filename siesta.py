@@ -138,6 +138,27 @@ def prompt(model, input, **kwargs):
 
 
 @siesta.filter
+def read(file):
+    with open(file) as f:
+        return f.read()
+    return ""
+
+
+@siesta.filter
+def write(content, file):
+    with open(file, "w") as f:
+        f.write(content)
+    return ""
+
+
+@siesta.filter
+def append(content, file):
+    with open(file, "a") as f:
+        f.write(content)
+    return ""
+
+
+@siesta.filter
 def catfiles(app, inp):
     files = re.findall(r"(\w+\/[\w/\.]+)", inp)  # BUGGED, rewrite re
     contents = io.StringIO()
