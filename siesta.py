@@ -28,7 +28,6 @@ class Siesta:
 
     def run(self):
         self.pool = ThreadPoolExecutor()
-        self.cache = shelve.open(os.path.expanduser("~/.prompt_cache"))
         template = self.env.get_template(os.path.basename(self.template_file))
         output = template.render(argv=sys.argv, input=" ".join(sys.argv[2:]))
 
@@ -36,6 +35,17 @@ class Siesta:
         if lines and lines[0].startswith("#!"):
             lines = lines[1:]
         print("\n".join(lines).strip("\n"))
+
+    def cache_get(self, key, default=None):
+        cache = shelve.open(os.path.expanduser("~/.prompt_cache"))
+        key = cache.get(key, default)
+        cache.close()
+        return key
+
+    def cache_set(self, key, value):
+        cache = shelve.open(os.path.expanduser("~/.prompt_cache"))
+        cache[key] = value
+        cache.close()
 
     def filter(self, func):
         name = func.__name__.rstrip("_")
@@ -105,7 +115,7 @@ def prompt_sync(prompt, model, **kwargs):
     if os.environ.get("SIESTA_CACHE") in ("yes", "true", "1"):
         cached = None
     else:
-        cached = siesta.cache.get(cache_key)
+        cached = siesta.cache_get(cache_key)
     if cached is not None:
         return cached
     else:
@@ -126,7 +136,7 @@ def prompt_sync(prompt, model, **kwargs):
                 sys.stderr.flush()
 
         msgval = msg.getvalue()
-        siesta.cache[cache_key] = msgval
+        siesta.cache_set(cache_key, msgval)
 
         return msgval
 
@@ -159,14 +169,14 @@ def append(content, file):
 
 
 @siesta.filter
-def catfiles(app, inp):
+def catfiles(inp):
     files = re.findall(r"(\w+\/[\w/\.]+)", inp)  # BUGGED, rewrite re
     contents = io.StringIO()
     for file in files:
-        if os.path.exists(file):
+        if os.path.isfile(file):
             with open(file, "r") as f:
                 content = f.read()
-                contents.write(f"=== file: {file} ===\n{content}\n======\n")
+                contents.write(f"File: {file}\n```\n{content}```\n\n")
     return contents.getvalue()
 
 
