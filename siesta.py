@@ -4,6 +4,7 @@ import shlex
 import io
 import sys
 import subprocess
+import textwrap
 from uuid import uuid4
 import hashlib
 import json
@@ -23,18 +24,23 @@ class Siesta:
         self._uuid2futures = {}
         self.env = Environment(
             loader=FileSystemLoader(os.path.dirname(self.template_file)),
+            extensions=["jinja2.ext.loopcontrols"],
             lstrip_blocks=True,
+            trim_blocks=True,
         )
+        self.funcs = {}
 
     def run(self):
         self.pool = ThreadPoolExecutor()
         template = self.env.get_template(os.path.basename(self.template_file))
-        output = template.render(argv=sys.argv, input=" ".join(sys.argv[2:]))
+        output = template.render(
+            argv=sys.argv, input=" ".join(sys.argv[2:]), **self.funcs
+        )
 
-        lines = output.splitlines()
-        if lines and lines[0].startswith("#!"):
-            lines = lines[1:]
-        print("\n".join(lines).strip("\n"))
+        # lines = output.splitlines()
+        # if lines and lines[0].startswith("#!"):
+        #     lines = lines[1:]
+        # print("\n".join(lines).strip("\n"))
 
     def cache_get(self, key, default=None):
         cache = shelve.open(os.path.expanduser("~/.prompt_cache"))
@@ -52,6 +58,11 @@ class Siesta:
         self.env.filters[name] = lambda *args, **kwargs: self._expand_futures(
             func(*args, **kwargs)
         )
+        return func
+
+    def function(self, func):
+        name = func.__name__.rstrip("_")
+        self.funcs[name] = func
         return func
 
     def _expand_futures(self, stri):
@@ -74,7 +85,7 @@ except IndexError:
 
 
 @siesta.filter
-def run(input, cmd="bash", label=False, silentfail=False):
+def run(input, cmd="bash", label=False, silentfail=False, trim=True):
     # Start the process
     if not isinstance(cmd, str):
         cmd = shlex.join(cmd)
@@ -97,6 +108,9 @@ def run(input, cmd="bash", label=False, silentfail=False):
 
     if label:
         return f"```{cmd}\n$ {input}\n{stdout}\n\n```"
+
+    if trim:
+        stdout = stdout.strip(" \n")
 
     return stdout
 
@@ -212,7 +226,7 @@ def askrun(inp):
 
 
 @siesta.filter
-def quote(stri):
+def escape(stri):
     return shlex.quote(stri)
 
 
@@ -228,6 +242,15 @@ def json_(stri):
 
 
 @siesta.filter
+def dedent(stri):
+    return textwrap.dedent(stri)
+
+
+@siesta.filter
+def slugify(stri):
+    return re.sub(r"\W+", "-", stri).lower()
+
+
 def askedit(stri, label="Edit"):
     result = subprocess.run(
         ["dialog", "--inputbox", label, "10", "100", stri],  # Example command
@@ -236,6 +259,36 @@ def askedit(stri, label="Edit"):
         check=True,  # Raise an exception on s;
     )
     return result.stderr
+
+
+@siesta.function
+def print_(*args, **kwargs):
+    print(*args, **kwargs)
+    return ""
+
+
+@siesta.function
+def error(*args):
+    print("Error", *args, file=sys.stderr)
+    sys.exit(1)
+
+
+@siesta.function
+def cd(*args, **kwargs):
+    os.chdir(*args, **kwargs)
+    return ""
+
+
+@siesta.function
+def loadini(filename):
+    import configparser
+
+    config = configparser.ConfigParser()
+    config.read(os.path.expanduser(filename))
+    config_dict = {
+        section: dict(config.items(section)) for section in config.sections()
+    }
+    return config_dict
 
 
 def main():
