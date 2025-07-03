@@ -170,6 +170,11 @@ def read(file):
 
 @siesta.filter
 def write(content, file):
+
+    # Small hack
+    if not content.endswith("\n"):
+        content += "\n"
+
     with open(file, "w") as f:
         f.write(content)
     return ""
