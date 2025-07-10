@@ -175,6 +175,9 @@ def write(content, file):
     if not content.endswith("\n"):
         content += "\n"
 
+    # Create non-existing subdirectories
+    os.makedirs(os.path.dirname(file), exist_ok=True)
+
     with open(file, "w") as f:
         f.write(content)
     return ""
@@ -194,7 +197,11 @@ def catfiles(inp):
     for file in files:
         if os.path.isfile(file):
             with open(file, "r") as f:
-                content = f.read()
+                try:
+                    content = f.read()
+                except UnicodeDecodeError:
+                    contents.write(f"File: {file}\n```\n<binary file stripped>```\n\n")
+                    continue
                 contents.write(f"File: {file}\n```\n{content}```\n\n")
     return contents.getvalue()
 
