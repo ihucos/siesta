@@ -263,6 +263,7 @@ def slugify(stri):
     return re.sub(r"\W+", "-", stri).lower()
 
 
+@siesta.filter
 def askedit(stri, label="Edit"):
     result = subprocess.run(
         ["dialog", "--inputbox", label, "10", "100", stri],  # Example command
