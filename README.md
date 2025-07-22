@@ -21,7 +21,7 @@ Write a git commit message for these changes. Use few words.
 {% endset %}
 
 {% filter run %}
-git commit -am {{ commit|askedit|quote }}
+git commit -am {{ commit|askedit|escape }}
 {% endfilter %}
 ```
 
