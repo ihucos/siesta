@@ -260,7 +260,11 @@ def dedent(stri):
 
 @siesta.filter
 def slugify(stri):
-    return re.sub(r"\W+", "-", stri).lower()
+    s = re.sub(r"\W+", "-", stri).lower()
+    while "--" in s:
+        s = s.replace("--", "-")
+    s = s.strip("-")
+    return s
 
 
 @siesta.filter
