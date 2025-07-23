@@ -301,6 +301,7 @@ def loadini(filename):
     import configparser
 
     config = configparser.ConfigParser()
+    config.optionxform = str
     config.read(os.path.expanduser(filename))
     config_dict = {
         section: dict(config.items(section)) for section in config.sections()
