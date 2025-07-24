@@ -286,7 +286,7 @@ def print_(*args, **kwargs):
 
 @siesta.function
 def error(*args):
-    print("Error", *args, file=sys.stderr)
+    print("Error:", *args, file=sys.stderr)
     sys.exit(1)
 
 
