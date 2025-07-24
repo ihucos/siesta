@@ -309,6 +309,11 @@ def loadini(filename):
     return config_dict
 
 
+@siesta.function
+def import_(*args, **kwargs):
+    return __import__(*args, **kwargs)
+
+
 def main():
     siesta.run()
 
