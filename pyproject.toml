@@ -4,14 +4,36 @@
 name = "siesta"
 version = "0.1.0"
 description = "Automatize workflow with jinja2 prompts."
+readme = "README.md"
+license = {file = "LICENSE"}
 authors = [
     {name = "Irae Hueck Costa", email = "mail@irae.me"}
+]
+keywords = ["automation", "workflow", "jinja2", "prompts", "ai"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: System Shells",
 ]
 requires-python = ">=3.8"
 dependencies = [
     "litellm>=1.55.6",
     "jinja2>=3.1.4",
 ]
+
+[project.urls]
+Homepage = "https://github.com/ihucos/siesta"
+Repository = "https://github.com/ihucos/siesta"
+Issues = "https://github.com/ihucos/siesta/issues"
 
 [project.scripts]
 siesta = "siesta:main"
