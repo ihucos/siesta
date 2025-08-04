@@ -176,7 +176,9 @@ def write(content, file):
         content += "\n"
 
     # Create non-existing subdirectories
-    os.makedirs(os.path.dirname(file), exist_ok=True)
+    dirname = os.path.dirname(file)
+    if dirname:
+        os.makedirs(dirname, exist_ok=True)
 
     with open(file, "w") as f:
         f.write(content)
@@ -276,6 +278,11 @@ def askedit(stri, label="Edit"):
         check=True,  # Raise an exception on s;
     )
     return result.stderr
+
+
+@siesta.filter
+def py(code, *args, **kwargs):
+    exec(code, {}, kwargs)
 
 
 @siesta.function
