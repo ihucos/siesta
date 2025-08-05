@@ -195,6 +195,7 @@ def append(content, file):
 @siesta.filter
 def catfiles(inp):
     files = re.findall(r"(\w+\/[\w/\.]+)", inp)  # BUGGED, rewrite re
+    files = set(files)
     contents = io.StringIO()
     for file in files:
         if os.path.isfile(file):
