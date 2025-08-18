@@ -207,7 +207,7 @@ def catfiles(inp):
                         f"File: `{file}`\n```\n<binary file stripped>```\n\n"
                     )
                     continue
-                contents.write(f"File: {file}\n```\n{content}```\n\n")
+                contents.write(f"File: `{file}`\n```\n{content}```\n\n")
     return contents.getvalue()
 
 
